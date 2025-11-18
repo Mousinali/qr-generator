@@ -3,14 +3,13 @@ import { supabaseServer } from "../../lib/supabase-server";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  context: { params: Promise<{ slug: string }> }
 ) {
-  const slug = params.slug;
+  const { slug } = await context.params;
 
-  if (!slug) {
-    return NextResponse.redirect(new URL("/", req.url));
-  }
+  if (!slug) return NextResponse.redirect("/");
 
+  // fetch URL
   const { data, error } = await supabaseServer
     .from("links")
     .select("url, clicks")
@@ -18,16 +17,15 @@ export async function GET(
     .single();
 
   if (error || !data) {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect("/");
   }
 
-  // fire-and-forget click increment
+  // increment clicks (no wait)
   supabaseServer
     .from("links")
-    .update({ clicks: (data.clicks ?? 0) + 1 })
+    .update({ clicks: (data.clicks || 0) + 1 })
     .eq("slug", slug)
-    .then(() => {})
-    .catch(() => {});
+    .then(() => {});
 
   return NextResponse.redirect(data.url);
 }
