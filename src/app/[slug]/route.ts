@@ -1,29 +1,31 @@
-// app/[slug]/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '../../lib/supabase-server';
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseServer } from "../../lib/supabase-server";
 
-export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { slug: string } }
+) {
   const slug = params.slug;
-  if (!slug) return NextResponse.redirect('/');
 
-  // get url
+  if (!slug) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
   const { data, error } = await supabaseServer
-    .from('links')
-    .select('url, clicks')
-    .eq('slug', slug)
-    .limit(1)
+    .from("links")
+    .select("url, clicks")
+    .eq("slug", slug)
     .single();
 
   if (error || !data) {
-    // slug not found -> show 404; redirect to homepage
-    return NextResponse.redirect('/');
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // increment clicks (fire-and-forget)
+  // fire-and-forget click increment
   supabaseServer
-    .from('links')
+    .from("links")
     .update({ clicks: (data.clicks ?? 0) + 1 })
-    .eq('slug', slug)
+    .eq("slug", slug)
     .then(() => {})
     .catch(() => {});
 
