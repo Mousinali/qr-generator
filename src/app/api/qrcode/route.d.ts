@@ -1,6 +1,6 @@
 // app/api/qrcode/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import qrcode from 'qrcode';
+import qrcode from 'qrcode'
 
 export async function POST(req: NextRequest) {
   const { text } = await req.json();
