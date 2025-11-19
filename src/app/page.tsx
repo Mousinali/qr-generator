@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import QRCode from "react-qr-code";
 import html2canvas from "html2canvas";
 
@@ -13,6 +13,34 @@ export default function Home() {
 
   const qrRef = useRef<HTMLDivElement>(null);
 
+  // -----------------------------
+  // LOAD ONLY slug + logo ON PAGE LOAD
+  // -----------------------------
+  useEffect(() => {
+    const savedSlug = localStorage.getItem("slug");
+    const savedLogo = localStorage.getItem("logo");
+
+    // Keep input EMPTY always on reload
+    setUrl("");
+
+    if (savedSlug) setSlug(savedSlug);
+    if (savedLogo) setLogo(savedLogo);
+  }, []);
+
+  // -----------------------------
+  // SAVE DATA TO LOCALSTORAGE
+  // -----------------------------
+  useEffect(() => {
+    if (slug) localStorage.setItem("slug", slug);
+  }, [slug]);
+
+  useEffect(() => {
+    if (logo) localStorage.setItem("logo", logo);
+  }, [logo]);
+
+  // -----------------------------
+  // CREATE SHORT LINK
+  // -----------------------------
   async function handleShorten(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -30,6 +58,7 @@ export default function Home() {
       if (!res.ok) throw new Error(json.error || "Failed");
 
       setSlug(json.slug);
+      localStorage.setItem("slug", json.slug);
     } catch (err: any) {
       setError(err.message || "Error occurred");
     } finally {
@@ -39,16 +68,25 @@ export default function Home() {
 
   const shortUrl = slug ? `${location.origin}/${slug}` : null;
 
+  // ----------------------------------------
+  // LOGO UPLOAD + PREVIEW (BASE64)
+  // ----------------------------------------
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (ev) => setLogo(ev.target?.result as string);
+    reader.onload = (ev) => {
+      const base64 = ev.target?.result as string;
+      setLogo(base64);
+      localStorage.setItem("logo", base64);
+    };
     reader.readAsDataURL(file);
   };
 
-  // DOWNLOAD QR
+  // -----------------------------
+  // DOWNLOAD QR IMAGE
+  // -----------------------------
   const handleDownload = async () => {
     if (!qrRef.current) return;
 
@@ -63,10 +101,21 @@ export default function Home() {
     link.click();
   };
 
+  // -----------------------------
+  // CLEAR EVERYTHING
+  // -----------------------------
+  const clearAll = () => {
+    localStorage.clear();
+    setUrl("");
+    setSlug(null);
+    setLogo(null);
+    window.location.reload();
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center p-6 bg-gray-100">
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl p-8">
-        
+
         <h1 className="text-3xl font-bold text-center mb-6 text-black">
           Short URL + QR Generator
         </h1>
@@ -80,17 +129,58 @@ export default function Home() {
             onChange={(e) => setUrl(e.target.value)}
           />
 
+          {/* DRAG & DROP LOGO UPLOAD */}
+          <div
+            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => setLogo(ev.target?.result as string);
+                reader.readAsDataURL(file);
+              }
+            }}
+            onClick={() => document.getElementById("fileUpload")?.click()}
+          >
+            <p className="text-gray-600 font-medium">
+              Drag & Drop your logo here, or click to upload
+            </p>
+            <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG supported</p>
+
+            {logo && (
+              <div className="mt-4 flex justify-center">
+                <img
+                  src={logo}
+                  alt="Uploaded Logo Preview"
+                  className="w-20 h-20 object-contain bg-white p-2 rounded-lg shadow"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* HIDDEN REAL INPUT */}
           <input
+            id="fileUpload"
             type="file"
             accept="image/*"
-            onChange={handleLogoUpload}
-            className="w-full p-2 border rounded-lg text-black"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+
+              const reader = new FileReader();
+              reader.onload = (ev) => setLogo(ev.target?.result as string);
+              reader.readAsDataURL(file);
+            }}
           />
+
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700"
+            className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700"
           >
             {loading ? "Creating..." : "Create Short Link + QR"}
           </button>
@@ -99,7 +189,7 @@ export default function Home() {
         {/* ERROR */}
         {error && <p className="text-red-600 mt-4 text-center">{error}</p>}
 
-        {/* OUTPUT */}
+        {/* RESULT */}
         {shortUrl && (
           <div className="mt-8 flex flex-col items-center">
 
@@ -107,21 +197,19 @@ export default function Home() {
             <a
               href={shortUrl}
               target="_blank"
-              className="text-blue-600 font-medium mb-6"
+              className="text-blue-600 font-medium mb-6 break-all"
             >
               {shortUrl}
             </a>
 
-            {/* QR CODE BOX */}
+            {/* QR BOX */}
             <div
               ref={qrRef}
               className="relative flex items-center justify-center bg-white p-3 rounded-xl shadow"
               style={{ width: 250, height: 250 }}
             >
-              {/* QR */}
               <QRCode value={shortUrl} size={250} />
 
-              {/* CENTER LOGO */}
               {logo && (
                 <div
                   className="absolute flex items-center justify-center"
@@ -146,13 +234,22 @@ export default function Home() {
               )}
             </div>
 
-            {/* DOWNLOAD BUTTON */}
-            <button
-              onClick={handleDownload}
-              className="mt-6 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              Download QR
-            </button>
+            {/* BUTTONS */}
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={handleDownload}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Download QR
+              </button>
+
+              <button
+                onClick={clearAll}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Clear
+              </button>
+            </div>
           </div>
         )}
       </div>
