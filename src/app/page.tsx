@@ -131,7 +131,7 @@ export default function Home() {
 
           {/* DRAG & DROP LOGO UPLOAD */}
           <div
-            className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition"
+            className="w-full border-2 border-dashed border-gray-400 rounded-lg p-6 text-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
